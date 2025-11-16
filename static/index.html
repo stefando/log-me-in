@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CMD SaaS Auth Helper</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <main class="container">
+        <h1>🔐 CMD SaaS Auth Helper</h1>
+
+        <article id="success-alert" hidden>✅ Successfully authenticated!</article>
+
+        <label>
+            API Gateway URL:
+            <input type="text" id="api-url" placeholder="https://api.acme-corp.dev-gummi.saas.cmddev.thermofisher.com">
+            <small>
+                Presets:
+                <a href="#" onclick="setPreset('acme-corp', 'dev-gummi'); return false;">acme-corp (dev-gummi)</a> |
+                <a href="#" onclick="setPreset('stark-industries', 'dev-gummi'); return false;">stark-industries (dev-gummi)</a> |
+                <a href="#" onclick="setPreset('tyrell-corp', 'dev-gummi'); return false;">tyrell-corp (dev-gummi)</a>
+            </small>
+        </label>
+
+        <div role="group">
+            <button onclick="login()">Login</button>
+            <button onclick="logout()" class="secondary">Logout</button>
+        </div>
+
+        <article id="session-box" hidden>
+            <strong>Session ID:</strong>
+            <pre><code id="session-id"></code></pre>
+            <button onclick="copySession()">Copy to Clipboard</button>
+
+            <details>
+                <summary>Usage with curl</summary>
+                <pre><code id="curl-example">curl -H "Cookie: session_id=YOUR_SESSION_ID" \
+  -H "Origin: http://localhost:3000" \
+  https://api.acme-corp.dev-gummi.saas.cmddev.thermofisher.com/api/v1/drive/internal/folders</code></pre>
+            </details>
+        </article>
+    </main>
+
+    <script>
+        // Check for success parameter on page load
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === 'true') {
+            document.getElementById('success-alert').hidden = false;
+            loadSession();
+            // Clean up URL without page reload
+            window.history.replaceState({}, '', '/');
+        }
+
+        // Load session on initial page load
+        loadSession();
+
+        function setPreset(tenant, env) {
+            document.getElementById('api-url').value =
+                `https://api.${tenant}.${env}.saas.cmddev.thermofisher.com`;
+        }
+
+        function login() {
+            const apiUrl = document.getElementById('api-url').value;
+            if (!apiUrl) {
+                alert('Please enter an API Gateway URL');
+                return;
+            }
+            window.location.href = `/login?api_url=${encodeURIComponent(apiUrl)}`;
+        }
+
+        function logout() {
+            if (confirm('Clear current session?')) {
+                fetch('/logout', { method: 'POST' })
+                    .then(() => {
+                        document.getElementById('session-box').hidden = true;
+                        document.getElementById('session-id').textContent = '';
+                        document.getElementById('success-alert').hidden = true;
+                    })
+                    .catch(err => console.error('Logout failed:', err));
+            }
+        }
+
+        function loadSession() {
+            fetch('/session')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.session_id) {
+                        document.getElementById('session-id').textContent = data.session_id;
+                        document.getElementById('session-box').hidden = false;
+                        updateCurlExample(data.session_id);
+                    }
+                })
+                .catch(err => console.error('Failed to load session:', err));
+        }
+
+        function copySession() {
+            const sessionId = document.getElementById('session-id').textContent;
+            navigator.clipboard.writeText(sessionId)
+                .then(() => alert('Session ID copied to clipboard!'))
+                .catch(err => {
+                    console.error('Copy failed:', err);
+                    alert('Failed to copy. Please select and copy manually.');
+                });
+        }
+
+        function updateCurlExample(sessionId) {
+            const apiUrl = document.getElementById('api-url').value ||
+                'https://api.acme-corp.dev-gummi.saas.cmddev.thermofisher.com';
+            const example = `curl -H "Cookie: session_id=${sessionId}" \\
+  -H "Origin: http://localhost:3000" \\
+  ${apiUrl}/api/v1/drive/internal/folders`;
+            document.getElementById('curl-example').textContent = example;
+        }
+    </script>
+</body>
+</html>
