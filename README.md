@@ -42,11 +42,12 @@ go run main.go -port=3000
 ### Authenticate
 
 1. Open http://localhost:8080 in your browser
-2. Enter the API Gateway URL (or click a preset)
+2. Enter the API Gateway URL (e.g., `https://api.acme-corp.feature-856386.saas.cmddev.thermofisher.com`)
 3. Click "Login" → redirects to Cognito
 4. Enter your credentials at Cognito Hosted UI
 5. After successful login, you're redirected back
 6. Session ID is displayed → click "Copy to Clipboard"
+7. The URL is automatically saved to "Recent URLs" for quick access next time
 
 ### Use the Session ID
 
@@ -106,10 +107,10 @@ curl -H "Cookie: session_id=$SESSION_ID" \
 
 - ✅ No dependencies (uses Go stdlib + embedded static files)
 - ✅ Works with any CMD SaaS environment
-- ✅ Presets for common environments
+- ✅ Dynamic presets - automatically remembers your last 5 URLs
 - ✅ Clean, simple UI (Pico CSS)
 - ✅ Copy session ID to clipboard
-- ✅ Example curl command
+- ✅ Example curl command with your actual URL
 
 ## Configuration
 
@@ -119,8 +120,10 @@ The server accepts these flags:
 
 ## Notes
 
-- The session ID is stored in memory only
-- Click "Logout" to clear the current session
+- The session ID is stored in server memory only
+- Recent URLs are stored in browser localStorage (persists across sessions)
+- Maximum of 5 recent URLs are kept (oldest is auto-removed when full)
+- Click "Logout" to clear the current session (keeps recent URLs)
 - The server keeps running - use Ctrl+C to stop
 - Session IDs expire based on Cognito token lifetime (typically 1 hour)
 

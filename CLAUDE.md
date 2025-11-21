@@ -17,6 +17,7 @@ This is a **single-file Go application** (`main.go`) with embedded static assets
 - **Embedded static files**: Frontend HTML is embedded via `//go:embed static/*` directive
 - **In-memory session storage**: Session IDs stored in `Server` struct with mutex protection
 - **Port flexibility**: Configurable via `-port` flag (default: 8080)
+- **Dynamic presets**: API URLs stored in browser localStorage, automatically populated after successful login (max 5, FIFO)
 
 ### HTTP Endpoints
 - `GET /` → Serves embedded `static/index.html`
@@ -77,3 +78,15 @@ If using port 3000 (for CORS compatibility with Drive UI), ensure:
 
 ### Session Lifetime
 Session IDs expire based on Cognito token lifetime (typically 1 hour). No refresh mechanism exists.
+
+## Frontend localStorage Schema
+
+The UI uses localStorage for persistence:
+
+- **`api_url`** (string): Currently selected API URL, restored on page load
+- **`api_url_presets`** (JSON array): List of recent URLs (max 5)
+  - Format: `["https://api.tenant1.env1.saas...", "https://api.tenant2.env2.saas...", ...]`
+  - FIFO: When full, oldest URL is removed when new one is added
+  - URLs are deduplicated (no duplicates in list)
+  - Displayed as `{tenant} ({env})` format (e.g., "acme-corp (feature-856386)")
+  - Automatically populated after successful OAuth login

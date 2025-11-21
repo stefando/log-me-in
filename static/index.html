@@ -15,11 +15,8 @@
         <label>
             API Gateway URL:
             <input type="text" id="api-url" placeholder="https://api.acme-corp.dev-gummi.saas.cmddev.thermofisher.com">
-            <small>
-                Presets:
-                <a href="#" onclick="setPreset('acme-corp', 'dev-gummi'); return false;">acme-corp (dev-gummi)</a> |
-                <a href="#" onclick="setPreset('stark-industries', 'dev-gummi'); return false;">stark-industries (dev-gummi)</a> |
-                <a href="#" onclick="setPreset('tyrell-corp', 'dev-gummi'); return false;">tyrell-corp (dev-gummi)</a>
+            <small id="preset-container">
+                Recent URLs: <span id="preset-list"></span>
             </small>
         </label>
 
@@ -43,11 +40,16 @@
     </main>
 
     <script>
+        const MAX_PRESETS = 5;
+
         // Restore API URL from localStorage on page load
         const savedApiUrl = localStorage.getItem('api_url');
         if (savedApiUrl) {
             document.getElementById('api-url').value = savedApiUrl;
         }
+
+        // Render presets on page load
+        renderPresets();
 
         // Check for success parameter on page load
         const urlParams = new URLSearchParams(window.location.search);
@@ -61,8 +63,70 @@
         // Load session on initial page load
         loadSession();
 
-        function setPreset(tenant, env) {
-            const apiUrl = `https://api.${tenant}.${env}.saas.cmddev.thermofisher.com`;
+        function getPresets() {
+            const presets = localStorage.getItem('api_url_presets');
+            return presets ? JSON.parse(presets) : [];
+        }
+
+        function savePresets(presets) {
+            localStorage.setItem('api_url_presets', JSON.stringify(presets));
+        }
+
+        function addPreset(apiUrl) {
+            if (!apiUrl) return;
+
+            let presets = getPresets();
+
+            // Check if URL already exists
+            if (presets.includes(apiUrl)) {
+                return; // Already in list
+            }
+
+            // Add new URL
+            presets.push(apiUrl);
+
+            // Keep only last MAX_PRESETS (FIFO: remove oldest)
+            if (presets.length > MAX_PRESETS) {
+                presets.shift(); // Remove first (oldest) element
+            }
+
+            savePresets(presets);
+            renderPresets();
+        }
+
+        function parseUrlDisplay(url) {
+            // Extract tenant and environment from URL
+            // Format: https://api.{tenant}.{env}.saas.cmddev.thermofisher.com
+            try {
+                const match = url.match(/https:\/\/api\.([^.]+)\.([^.]+)\.saas\.cmddev\.thermofisher\.com/);
+                if (match) {
+                    return `${match[1]} (${match[2]})`;
+                }
+            } catch (e) {
+                console.error('Failed to parse URL:', e);
+            }
+            // Fallback to showing raw URL if parsing fails
+            return url;
+        }
+
+        function renderPresets() {
+            const presets = getPresets();
+            const presetList = document.getElementById('preset-list');
+            const presetContainer = document.getElementById('preset-container');
+
+            if (presets.length === 0) {
+                presetContainer.hidden = true;
+                return;
+            }
+
+            presetContainer.hidden = false;
+            presetList.innerHTML = presets.map((url, index) => {
+                const display = parseUrlDisplay(url);
+                return `<a href="#" onclick="selectPreset('${url}'); return false;">${display}</a>`;
+            }).join(' | ');
+        }
+
+        function selectPreset(apiUrl) {
             document.getElementById('api-url').value = apiUrl;
             localStorage.setItem('api_url', apiUrl);
         }
@@ -98,6 +162,12 @@
                         document.getElementById('session-id').textContent = data.session_id;
                         document.getElementById('session-box').hidden = false;
                         updateCurlExample(data.session_id);
+
+                        // Add current API URL to presets after successful login
+                        const currentApiUrl = document.getElementById('api-url').value;
+                        if (currentApiUrl) {
+                            addPreset(currentApiUrl);
+                        }
                     }
                 })
                 .catch(err => console.error('Failed to load session:', err));
