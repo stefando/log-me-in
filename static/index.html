@@ -43,6 +43,12 @@
     </main>
 
     <script>
+        // Restore API URL from localStorage on page load
+        const savedApiUrl = localStorage.getItem('api_url');
+        if (savedApiUrl) {
+            document.getElementById('api-url').value = savedApiUrl;
+        }
+
         // Check for success parameter on page load
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success') === 'true') {
@@ -56,8 +62,9 @@
         loadSession();
 
         function setPreset(tenant, env) {
-            document.getElementById('api-url').value =
-                `https://api.${tenant}.${env}.saas.cmddev.thermofisher.com`;
+            const apiUrl = `https://api.${tenant}.${env}.saas.cmddev.thermofisher.com`;
+            document.getElementById('api-url').value = apiUrl;
+            localStorage.setItem('api_url', apiUrl);
         }
 
         function login() {
@@ -66,6 +73,8 @@
                 alert('Please enter an API Gateway URL');
                 return;
             }
+            // Save to localStorage before redirecting
+            localStorage.setItem('api_url', apiUrl);
             window.location.href = `/login?api_url=${encodeURIComponent(apiUrl)}`;
         }
 
