@@ -1,3 +1,3 @@
-module github.com/Ardia/log-me-in
+module github.com/stefando/log-me-in
 
 go 1.25
