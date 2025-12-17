@@ -23,6 +23,7 @@
         <div role="group">
             <button onclick="login()">Login</button>
             <button onclick="logout()" class="secondary">Logout</button>
+            <button onclick="resetUrl()" class="secondary outline">Reset URL</button>
         </div>
 
         <article id="session-box" hidden>
@@ -41,6 +42,15 @@
 
     <script>
         const MAX_PRESETS = 5;
+
+        // Fetch default URL from server, use if no saved URL
+        fetch('/config')
+            .then(r => r.json())
+            .then(config => {
+                if (!localStorage.getItem('api_url')) {
+                    document.getElementById('api-url').value = config.default_api_url;
+                }
+            });
 
         // Restore API URL from localStorage on page load
         const savedApiUrl = localStorage.getItem('api_url');
@@ -129,6 +139,17 @@
         function selectPreset(apiUrl) {
             document.getElementById('api-url').value = apiUrl;
             localStorage.setItem('api_url', apiUrl);
+        }
+
+        function resetUrl() {
+            localStorage.removeItem('api_url');
+            localStorage.removeItem('api_url_presets');
+            fetch('/config')
+                .then(r => r.json())
+                .then(config => {
+                    document.getElementById('api-url').value = config.default_api_url;
+                    renderPresets();
+                });
         }
 
         function login() {

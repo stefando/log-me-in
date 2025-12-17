@@ -15,18 +15,23 @@ import (
 var staticFiles embed.FS
 
 type Server struct {
-	port      int
-	sessionID string
-	mu        sync.RWMutex
+	port       int
+	defaultURL string
+	sessionID  string
+	mu         sync.RWMutex
 }
 
 func main() {
 	port := flag.Int("port", 8080, "Port to run the server on")
+	env := flag.String("env", "gummi-dos", "Environment name")
+	tenant := flag.String("tenant", "arasaka", "Tenant code")
 	flag.Parse()
 
-	s := &Server{port: *port}
+	defaultURL := fmt.Sprintf("https://api.%s.%s.saas.cmddev.thermofisher.com", *tenant, *env)
+	s := &Server{port: *port, defaultURL: defaultURL}
 
 	http.HandleFunc("/", s.handleIndex)
+	http.HandleFunc("/config", s.handleConfig)
 	http.HandleFunc("/login", s.handleLogin)
 	http.HandleFunc("/logout", s.handleLogout)
 	http.HandleFunc("/callback", s.handleCallback)
@@ -46,6 +51,11 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(data)
+}
+
+func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"default_api_url": s.defaultURL})
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
