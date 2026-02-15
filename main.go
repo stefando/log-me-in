@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -36,6 +37,7 @@ func main() {
 	http.HandleFunc("/logout", s.handleLogout)
 	http.HandleFunc("/callback", s.handleCallback)
 	http.HandleFunc("/session", s.handleGetSession)
+	http.HandleFunc("/keep-alive", s.handleKeepAlive)
 
 	addr := fmt.Sprintf(":%d", s.port)
 	log.Printf("🔐 Auth server running at http://localhost%s\n", addr)
@@ -117,4 +119,48 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 		"session_id": sessionID,
 	}
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handleKeepAlive(w http.ResponseWriter, r *http.Request) {
+	apiURL := r.URL.Query().Get("api_url")
+	if apiURL == "" {
+		http.Error(w, "Missing api_url parameter", http.StatusBadRequest)
+		return
+	}
+
+	s.mu.RLock()
+	sessionID := s.sessionID
+	s.mu.RUnlock()
+
+	if sessionID == "" {
+		http.Error(w, "No active session", http.StatusUnauthorized)
+		return
+	}
+
+	sessionURL := fmt.Sprintf("%s/user/session", apiURL)
+	req, err := http.NewRequest("GET", sessionURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
+	req.Header.Set("Origin", fmt.Sprintf("http://localhost:%d", s.port))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("Keep-alive request failed: %v", err)
+		http.Error(w, "Keep-alive request failed", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+
+	if resp.StatusCode == http.StatusOK {
+		log.Printf("♻️ Session keep-alive successful")
+	} else {
+		log.Printf("⚠️ Session keep-alive returned status %d", resp.StatusCode)
+	}
 }

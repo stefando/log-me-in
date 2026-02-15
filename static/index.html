@@ -29,7 +29,10 @@
         <article id="session-box" hidden>
             <strong>Session ID:</strong>
             <pre><code id="session-id"></code></pre>
-            <button onclick="copySession()">Copy to Clipboard</button>
+            <div role="group">
+                <button onclick="copySession()">Copy to Clipboard</button>
+                <button onclick="keepAlive()" class="secondary" id="keep-alive-btn">Keep Alive</button>
+            </div>
 
             <details>
                 <summary>Usage with curl</summary>
@@ -202,6 +205,29 @@
                     console.error('Copy failed:', err);
                     alert('Failed to copy. Please select and copy manually.');
                 });
+        }
+
+        function keepAlive() {
+            const apiUrl = document.getElementById('api-url').value;
+            if (!apiUrl) {
+                alert('Please enter an API Gateway URL');
+                return;
+            }
+            const btn = document.getElementById('keep-alive-btn');
+            btn.setAttribute('aria-busy', 'true');
+            btn.textContent = 'Refreshing…';
+            fetch(`/keep-alive?api_url=${encodeURIComponent(apiUrl)}`)
+                .then(r => {
+                    if (!r.ok) throw new Error(`Status ${r.status}`);
+                    btn.textContent = '✓ Kept Alive';
+                    setTimeout(() => { btn.textContent = 'Keep Alive'; }, 3000);
+                })
+                .catch(err => {
+                    console.error('Keep-alive failed:', err);
+                    btn.textContent = '✗ Failed';
+                    setTimeout(() => { btn.textContent = 'Keep Alive'; }, 3000);
+                })
+                .finally(() => btn.removeAttribute('aria-busy'));
         }
 
         function updateCurlExample(sessionId) {
